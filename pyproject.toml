@@ -1,0 +1,81 @@
+[tool.poetry]
+name = "mcp-github-actions"
+version = "0.1.0"
+description = "MCP server for reading GitHub user actions"
+authors = ["Keren Finkelstein"]
+readme = "README.md"
+packages = [{include = "mcp_github_actions", from = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+mcp = "^1.10.1"
+pygithub = "^2.6.1"
+python-dotenv = "^1.1.1"
+pydantic = "^2.11.7"
+httpx = "^0.28.1"
+pydantic-settings = "^2.10.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+black = "^24.0.0"
+isort = "^5.13.0"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+
+[tool.poetry.scripts]
+mcp-github-actions = "mcp_github_actions.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["mcp_github_actions"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--strict-markers --strict-config --cov=mcp_github_actions"
+asyncio_mode = "auto"
