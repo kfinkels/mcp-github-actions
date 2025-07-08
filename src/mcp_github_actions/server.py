@@ -136,6 +136,30 @@ class GitHubActionsServer:
                         },
                         "required": ["username"]
                     }
+                ),
+                Tool(
+                    name="get_user_tech_stack",
+                    description="Analyze user's commits to extract tech stack, programming languages, and change patterns",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "username": {
+                                "type": "string",
+                                "description": "GitHub username to analyze tech stack for"
+                            },
+                            "days": {
+                                "type": "integer",
+                                "description": "Number of days back to analyze (default: 365)",
+                                "default": 365
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of commits to analyze (default: 100)",
+                                "default": 100
+                            }
+                        },
+                        "required": ["username"]
+                    }
                 )
             ]
         
@@ -164,6 +188,12 @@ class GitHubActionsServer:
                     arguments["username"],
                     arguments.get("since"),
                     arguments.get("limit", 50)
+                )
+            elif name == "get_user_tech_stack":
+                return await self._get_user_tech_stack(
+                    arguments["username"],
+                    arguments.get("days", 30),
+                    arguments.get("limit", 100)
                 )
             else:
                 raise ValueError(f"Unknown tool: {name}")
@@ -247,7 +277,7 @@ class GitHubActionsServer:
                         "email": commit.commit.author.email,
                         "date": commit.commit.author.date.isoformat()
                     },
-                    "repository": commit.repository.full_name if hasattr(commit, 'repository') else "Unknown",
+                    "repository": commit.repository.full_name if hasattr(commit, 'repository') and commit.repository else "Unknown",
                     "url": commit.html_url
                 })
             
@@ -259,6 +289,21 @@ class GitHubActionsServer:
             return [TextContent(
                 type="text",
                 text=f"Error getting user commits: {str(e)}"
+            )]
+    
+    async def _get_user_tech_stack(self, username: str, days: int, limit: int) -> List[TextContent]:
+        """Analyze user's commits to extract tech stack and patterns."""
+        try:
+            tech_stack = await self.github_client.get_user_tech_stack(username, days, limit)
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(tech_stack, indent=2)
+            )]
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=f"Error analyzing user tech stack: {str(e)}"
             )]
     
     def _format_event_payload(self, event: Event) -> Dict[str, Any]:
