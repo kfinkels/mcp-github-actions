@@ -90,6 +90,24 @@ async def test_server_functions():
     except Exception as e:
         print(f"❌ Error: {e}")
     
+    # Test 5: Get user tech stack
+    print("\n📊 Test 5: Get tech stack analysis for 'kfinkels'")
+    try:
+        result = await server._get_user_tech_stack('kfinkels', 365, 20)
+        print("✅ Success!")
+        data = json.loads(result[0].text)
+        print(f"🔧 Tech Stack Analysis:")
+        print(f"  - Commits analyzed: {data.get('analysis_period', {}).get('commits_analyzed', 0)}")
+        print(f"  - Programming languages: {len(data.get('programming_languages', {}))}")
+        if data.get('top_languages'):
+            print(f"  - Top languages: {[lang['language'] for lang in data.get('top_languages', [])][:3]}")
+        if data.get('top_frameworks'):
+            print(f"  - Top frameworks: {[fw['name'] for fw in data.get('top_frameworks', [])][:3]}")
+        if data.get('change_types'):
+            print(f"  - Change types: {[ct['type'] for ct in data.get('change_types', [])][:3]}")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
     print("\n🎉 Testing completed!")
 
 async def interactive_test():
@@ -100,7 +118,8 @@ async def interactive_test():
     print("2. get_user_activity <username> [days]")
     print("3. get_repository_events <owner> <repo> [limit]")
     print("4. get_user_commits <username> [limit]")
-    print("5. quit")
+    print("5. get_user_tech_stack <username> [days] [limit]")
+    print("6. quit")
     
     server = GitHubActionsServer()
     
@@ -164,6 +183,36 @@ async def interactive_test():
                 for commit in data[:5]:  # Show first 5
                     message = commit['message'].split('\n')[0]  # First line only
                     print(f"  - {commit['sha'][:8]}: {message}")
+            
+            elif cmd == 'get_user_tech_stack':
+                username = args[0]
+                days = int(args[1]) if len(args) > 1 else 365
+                limit = int(args[2]) if len(args) > 2 else 50
+                result = await server._get_user_tech_stack(username, days, limit)
+                data = json.loads(result[0].text)
+                print(f"🔧 Tech Stack Analysis for {username} (last {days} days):")
+                print(f"  - Commits analyzed: {data.get('analysis_period', {}).get('commits_analyzed', 0)}")
+                print(f"  - Repositories: {len(data.get('commit_summary', {}).get('repos_contributed', []))}")
+                
+                if data.get('top_languages'):
+                    print(f"  - Top languages:")
+                    for lang in data['top_languages'][:3]:
+                        print(f"    • {lang['language']}: {lang['files']} files ({lang['percentage']}%)")
+                
+                if data.get('top_frameworks'):
+                    print(f"  - Top frameworks:")
+                    for fw in data['top_frameworks'][:3]:
+                        print(f"    • {fw['name']}: {fw['mentions']} mentions")
+                
+                if data.get('top_tools'):
+                    print(f"  - Top tools:")
+                    for tool in data['top_tools'][:3]:
+                        print(f"    • {tool['name']}: {tool['mentions']} mentions")
+                
+                if data.get('change_types'):
+                    print(f"  - Change types:")
+                    for ct in data['change_types'][:3]:
+                        print(f"    • {ct['type']}: {ct['count']} commits ({ct['percentage']}%)")
             
             else:
                 print("❌ Unknown command")

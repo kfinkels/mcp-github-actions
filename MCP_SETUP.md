@@ -207,6 +207,28 @@ Get recent commits by a user across all repositories.
 Get commits by user 'gvanrossum' since '2024-01-01' with limit 25
 ```
 
+### 5. `get_user_tech_stack`
+Analyze user's commits to extract tech stack, programming languages, and change patterns.
+
+**Parameters:**
+- `username` (string, required): GitHub username to analyze
+- `days` (integer, optional): Days back to analyze (default: 30)
+- `limit` (integer, optional): Max commits to analyze (default: 100)
+
+**Example:**
+```
+Analyze tech stack for user 'torvalds' over the last 60 days
+```
+
+**Output includes:**
+- Programming languages used (with percentages)
+- Frameworks and libraries detected
+- Development tools identified
+- Database technologies
+- Cloud services
+- Change patterns (additions, deletions, modifications)
+- Commit categorization (features, bugfixes, refactoring, etc.)
+
 ## Troubleshooting
 
 ### Common Issues

@@ -8,6 +8,7 @@ A Model Context Protocol (MCP) server for reading GitHub user actions and reposi
 - **Repository Events**: Get recent events for any GitHub repository
 - **User Activity**: Get comprehensive user activity including commits, issues, and PRs
 - **User Commits**: Get recent commits by a user across all repositories
+- **Tech Stack Analysis**: Analyze user's commits to extract tech stack, programming languages, and change patterns
 - **Structured Data**: Returns well-formatted JSON data for easy analysis
 
 ## Installation
