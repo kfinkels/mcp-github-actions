@@ -212,7 +212,7 @@ Analyze user's commits to extract tech stack, programming languages, and change 
 
 **Parameters:**
 - `username` (string, required): GitHub username to analyze
-- `days` (integer, optional): Days back to analyze (default: 30)
+- `days` (integer, optional): Days back to analyze (default: 365)
 - `limit` (integer, optional): Max commits to analyze (default: 100)
 
 **Example:**
@@ -228,6 +228,32 @@ Analyze tech stack for user 'torvalds' over the last 60 days
 - Cloud services
 - Change patterns (additions, deletions, modifications)
 - Commit categorization (features, bugfixes, refactoring, etc.)
+
+### 6. `generate_work_experience`
+Generate comprehensive work experience profile from GitHub activity for LinkedIn/resume use.
+
+**Parameters:**
+- `username` (string, required): GitHub username to generate experience for
+- `repo_name` (string, optional): Specific repository to focus on
+- `organization` (string, optional): Organization/company name (will try to infer if not provided)
+- `days` (integer, optional): Days back to analyze (default: 365)
+
+**Example:**
+```
+Generate work experience profile for user 'torvalds' focusing on 'torvalds/linux' repository
+```
+
+**Output includes:**
+- Inferred role title based on technology patterns
+- Organization and team information
+- Start and end dates from commit history
+- Technologies and tools used
+- Methodologies employed (Agile, CI/CD, etc.)
+- Key responsibilities and achievements
+- Collaboration metrics
+- LinkedIn-ready summary
+- Linked artifacts (documentation, releases, etc.)
+- Complete JSON profile ready for integration
 
 ## Troubleshooting
 

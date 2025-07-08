@@ -16,7 +16,7 @@ os.environ.setdefault('GITHUB_TOKEN', 'your_github_token_here')
 from src.mcp_github_actions.server import GitHubActionsServer
 from src.mcp_github_actions.config import Config
 
-async def test_server_functions():
+async def test_server_functions(username='kfinkels'):
     """Test the server functions directly."""
     
     print("🧪 Testing MCP GitHub Actions Server")
@@ -38,9 +38,9 @@ async def test_server_functions():
     server = GitHubActionsServer()
     
     # Test 1: Get user events
-    print("\n📊 Test 1: Get user events for 'kfinkels'")
+    print(f"\n📊 Test 1: Get user events for '{username}'")
     try:
-        result = await server._get_user_events('kfinkels', 5)
+        result = await server._get_user_events(username, 5)
         print("✅ Success!")
         data = json.loads(result[0].text)
         print(f"📋 Found {len(data)} events")
@@ -50,9 +50,9 @@ async def test_server_functions():
         print(f"❌ Error: {e}")
     
     # Test 2: Get user activity
-    print("\n📊 Test 2: Get user activity for 'kfinkels'")
+    print(f"\n📊 Test 2: Get user activity for '{username}'")
     try:
-        result = await server._get_user_activity('kfinkels', 7)
+        result = await server._get_user_activity(username, 7)
         print("✅ Success!")
         data = json.loads(result[0].text)
         summary = data.get('summary', {})
@@ -65,22 +65,10 @@ async def test_server_functions():
     except Exception as e:
         print(f"❌ Error: {e}")
     
-    # Test 3: Get repository events
-    print("\n📊 Test 3: Get repository events for 'kfinkels/prompt_eng'")
+    # Test 3: Get repository events - Skip if no known repos
+    print(f"\n📊 Test 3: Get user commits for '{username}'")
     try:
-        result = await server._get_repository_events('kfinkels', 'prompt_eng', 3)
-        print("✅ Success!")
-        data = json.loads(result[0].text)
-        print(f"📋 Found {len(data)} events")
-        for event in data[:2]:  # Show first 2
-            print(f"  - {event['type']} by {event['actor']} at {event['created_at']}")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    # Test 4: Get user commits
-    print("\n📊 Test 4: Get user commits for 'kfinkels'")
-    try:
-        result = await server._get_user_commits('kfinkels', None, 5)
+        result = await server._get_user_commits(username, None, 5)
         print("✅ Success!")
         data = json.loads(result[0].text)
         print(f"📋 Found {len(data)} commits")
@@ -90,10 +78,10 @@ async def test_server_functions():
     except Exception as e:
         print(f"❌ Error: {e}")
     
-    # Test 5: Get user tech stack
-    print("\n📊 Test 5: Get tech stack analysis for 'kfinkels'")
+    # Test 4: Get user tech stack
+    print(f"\n📊 Test 4: Get tech stack analysis for '{username}'")
     try:
-        result = await server._get_user_tech_stack('kfinkels', 365, 20)
+        result = await server._get_user_tech_stack(username, 365, 20)
         print("✅ Success!")
         data = json.loads(result[0].text)
         print(f"🔧 Tech Stack Analysis:")
@@ -108,6 +96,26 @@ async def test_server_functions():
     except Exception as e:
         print(f"❌ Error: {e}")
     
+    # Test 5: Generate work experience
+    print(f"\n📊 Test 5: Generate work experience profile for '{username}'")
+    try:
+        result = await server._generate_work_experience(username, None, None, 365)
+        print("✅ Success!")
+        data = json.loads(result[0].text)
+        print(f"💼 Work Experience Profile:")
+        print(f"  - Role: {data.get('role_title_inferred', 'N/A')}")
+        print(f"  - Organization: {data.get('organization', 'N/A')}")
+        print(f"  - Period: {data.get('start_date', 'N/A')} to {data.get('end_date', 'N/A')}")
+        print(f"  - Technologies: {', '.join(data.get('technologies', [])[:5])}")
+        print(f"  - Methodologies: {', '.join(data.get('methodologies', []))}")
+        print(f"  - Total commits: {data.get('metrics', {}).get('total_commits', 0)}")
+        print(f"  - Key achievements:")
+        for achievement in data.get('key_achievements', [])[:2]:
+            print(f"    • {achievement}")
+        print(f"  - LinkedIn summary: {data.get('summary_for_linkedin', 'N/A')[:150]}...")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
     print("\n🎉 Testing completed!")
 
 async def interactive_test():
@@ -119,7 +127,8 @@ async def interactive_test():
     print("3. get_repository_events <owner> <repo> [limit]")
     print("4. get_user_commits <username> [limit]")
     print("5. get_user_tech_stack <username> [days] [limit]")
-    print("6. quit")
+    print("6. generate_work_experience <username> [repo_name] [organization] [days]")
+    print("7. quit")
     
     server = GitHubActionsServer()
     
@@ -214,6 +223,24 @@ async def interactive_test():
                     for ct in data['change_types'][:3]:
                         print(f"    • {ct['type']}: {ct['count']} commits ({ct['percentage']}%)")
             
+            elif cmd == 'generate_work_experience':
+                username = args[0]
+                repo_name = args[1] if len(args) > 1 else None
+                organization = args[2] if len(args) > 2 else None
+                days = int(args[3]) if len(args) > 3 else 365
+                result = await server._generate_work_experience(username, repo_name, organization, days)
+                data = json.loads(result[0].text)
+                print(f"💼 Work Experience Profile for {username}:")
+                print(f"  - Role: {data.get('role_title_inferred', 'N/A')}")
+                print(f"  - Organization: {data.get('organization', 'N/A')}")
+                print(f"  - Period: {data.get('start_date', 'N/A')} to {data.get('end_date', 'N/A')}")
+                print(f"  - Technologies: {', '.join(data.get('technologies', [])[:5])}")
+                print(f"  - Total commits: {data.get('metrics', {}).get('total_commits', 0)}")
+                print(f"  - Key responsibilities:")
+                for resp in data.get('responsibilities', [])[:3]:
+                    print(f"    • {resp}")
+                print(f"  - LinkedIn summary: {data.get('summary_for_linkedin', 'N/A')[:100]}...")
+            
             else:
                 print("❌ Unknown command")
                 
@@ -231,5 +258,9 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == 'interactive':
         asyncio.run(interactive_test())
+    elif len(sys.argv) > 1:
+        # Use provided username
+        username = sys.argv[1]
+        asyncio.run(test_server_functions(username))
     else:
         asyncio.run(test_server_functions()) 

@@ -160,6 +160,33 @@ class GitHubActionsServer:
                         },
                         "required": ["username"]
                     }
+                ),
+                Tool(
+                    name="generate_work_experience",
+                    description="Generate comprehensive work experience profile from GitHub activity for LinkedIn/resume use",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "username": {
+                                "type": "string",
+                                "description": "GitHub username to generate experience for"
+                            },
+                            "repo_name": {
+                                "type": "string",
+                                "description": "Specific repository to focus on (optional)"
+                            },
+                            "organization": {
+                                "type": "string",
+                                "description": "Organization/company name (optional, will try to infer from repos)"
+                            },
+                            "days": {
+                                "type": "integer",
+                                "description": "Number of days back to analyze (default: 365)",
+                                "default": 365
+                            }
+                        },
+                        "required": ["username"]
+                    }
                 )
             ]
         
@@ -192,8 +219,15 @@ class GitHubActionsServer:
             elif name == "get_user_tech_stack":
                 return await self._get_user_tech_stack(
                     arguments["username"],
-                    arguments.get("days", 30),
+                    arguments.get("days", 365),
                     arguments.get("limit", 100)
+                )
+            elif name == "generate_work_experience":
+                return await self._generate_work_experience(
+                    arguments["username"],
+                    arguments.get("repo_name"),
+                    arguments.get("organization"),
+                    arguments.get("days", 365)
                 )
             else:
                 raise ValueError(f"Unknown tool: {name}")
@@ -304,6 +338,21 @@ class GitHubActionsServer:
             return [TextContent(
                 type="text",
                 text=f"Error analyzing user tech stack: {str(e)}"
+            )]
+    
+    async def _generate_work_experience(self, username: str, repo_name: Optional[str], organization: Optional[str], days: int) -> List[TextContent]:
+        """Generate comprehensive work experience profile from GitHub activity."""
+        try:
+            experience = await self.github_client.generate_work_experience(username, repo_name, organization, days)
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(experience, indent=2)
+            )]
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=f"Error generating work experience: {str(e)}"
             )]
     
     def _format_event_payload(self, event: Event) -> Dict[str, Any]:

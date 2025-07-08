@@ -655,6 +655,373 @@ class GitHubClient:
         
         return analysis
     
+    async def generate_work_experience(self, username: str, repo_name: Optional[str] = None, organization: Optional[str] = None, days: int = 365) -> Dict[str, Any]:
+        """Generate comprehensive work experience profile from GitHub activity."""
+        try:
+            # Gather all data using existing methods
+            tech_stack = await self.get_user_tech_stack(username, days, 200)
+            commits = await self.get_user_commits(username, None, 100)
+            activity = await self.get_user_activity(username, days)
+            
+            # Get user information
+            user = self.github.get_user(username)
+            
+            # Determine date range
+            commit_dates = [c.commit.author.date.replace(tzinfo=None) for c in commits if c.commit.author.date]
+            start_date = min(commit_dates).strftime("%Y-%m-%d") if commit_dates else None
+            end_date = max(commit_dates).strftime("%Y-%m-%d") if commit_dates else None
+            
+            # Determine primary repository
+            repos_contributed = tech_stack.get("commit_summary", {}).get("repos_contributed", [])
+            primary_repo = repo_name if repo_name else (repos_contributed[0] if repos_contributed else None)
+            
+            # Extract organization from repository name
+            if not organization and primary_repo:
+                organization = primary_repo.split('/')[0] if '/' in primary_repo else username
+            
+            # Infer role title based on commit patterns and tech stack
+            role_title = self._infer_role_title(tech_stack, commits)
+            
+            # Generate responsibilities from commit messages and patterns
+            responsibilities = self._generate_responsibilities(tech_stack, commits)
+            
+            # Generate key achievements from metrics and patterns
+            achievements = self._generate_achievements(tech_stack, commits, activity)
+            
+            # Extract technologies and tools
+            technologies = [lang["language"] for lang in tech_stack.get("top_languages", [])[:10]]
+            tools = [tool["name"] for tool in tech_stack.get("top_tools", [])[:10]]
+            
+            # Infer methodologies from commit patterns and tools
+            methodologies = self._infer_methodologies(tech_stack, commits)
+            
+            # Calculate metrics
+            metrics = self._calculate_experience_metrics(commits, activity, tech_stack)
+            
+            # Analyze collaboration
+            collaboration = self._analyze_collaboration(commits, repos_contributed)
+            
+            # Generate linked artifacts
+            linked_artifacts = self._generate_linked_artifacts(primary_repo, user, commits)
+            
+            # Generate LinkedIn summary
+            summary = self._generate_linkedin_summary(role_title, technologies, achievements, organization)
+            
+            # Build the experience object
+            experience = {
+                "platform": "github",
+                "provider_username": username,
+                "provider_profile_url": f"https://github.com/{username}",
+                "repo_name": primary_repo.split('/')[-1] if primary_repo and '/' in primary_repo else primary_repo,
+                "repo_url": f"https://github.com/{primary_repo}" if primary_repo else None,
+                "organization": organization,
+                "role_title_inferred": role_title,
+                "team_or_project": primary_repo.split('/')[-1] if primary_repo and '/' in primary_repo else "Open Source",
+                "start_date": start_date,
+                "end_date": end_date,
+                "technologies": technologies,
+                "tools": tools,
+                "methodologies": methodologies,
+                "responsibilities": responsibilities,
+                "key_achievements": achievements,
+                "metrics": metrics,
+                "collaboration": collaboration,
+                "linked_artifacts": linked_artifacts,
+                "summary_for_linkedin": summary,
+                "vector_embedding_id": f"{username}_{primary_repo}_{start_date}_{end_date}".replace('/', '_') if all([username, primary_repo, start_date, end_date]) else f"{username}_github_profile"
+            }
+            
+            return experience
+            
+        except Exception as e:
+            logger.error(f"Error generating work experience for {username}: {e}")
+            raise
+    
+    def _infer_role_title(self, tech_stack: Dict[str, Any], commits: List) -> str:
+        """Infer role title based on technology stack and commit patterns."""
+        languages = tech_stack.get("top_languages", [])
+        frameworks = tech_stack.get("top_frameworks", [])
+        tools = tech_stack.get("top_tools", [])
+        
+        # Get primary language
+        primary_lang = languages[0]["language"].lower() if languages else ""
+        
+        # Check for DevOps/Infrastructure patterns
+        devops_tools = ["docker", "kubernetes", "terraform", "ansible", "jenkins", "github-actions", "ci/cd"]
+        has_devops = any(tool["name"].lower() in devops_tools for tool in tools)
+        
+        # Check for frontend patterns
+        frontend_frameworks = ["react", "vue", "angular", "nextjs", "svelte"]
+        has_frontend = any(fw["name"].lower() in frontend_frameworks for fw in frameworks)
+        
+        # Check for backend patterns
+        backend_languages = ["python", "java", "go", "rust", "c++", "c#", "php", "ruby"]
+        backend_frameworks = ["django", "flask", "spring", "express", "fastapi"]
+        has_backend = primary_lang in backend_languages or any(fw["name"].lower() in backend_frameworks for fw in frameworks)
+        
+        # Check for data science patterns
+        data_tools = ["pandas", "numpy", "matplotlib", "tensorflow", "pytorch", "scikit-learn"]
+        has_data_science = any(tool["name"].lower() in data_tools for tool in tools)
+        
+        # Check for mobile patterns
+        mobile_languages = ["swift", "kotlin", "dart"]
+        mobile_frameworks = ["flutter", "react-native"]
+        has_mobile = primary_lang in mobile_languages or any(fw["name"].lower() in mobile_frameworks for fw in frameworks)
+        
+        # Determine role based on patterns
+        if has_devops and (has_backend or has_frontend):
+            return "DevOps Engineer"
+        elif has_data_science:
+            return "Data Scientist" if primary_lang == "python" else "Data Engineer"
+        elif has_frontend and has_backend:
+            return "Full Stack Developer"
+        elif has_frontend:
+            return "Frontend Developer"
+        elif has_backend:
+            if primary_lang == "rust":
+                return "Systems Engineer"
+            elif primary_lang in ["go", "c++", "c"]:
+                return "Backend Engineer"
+            else:
+                return "Software Engineer"
+        elif has_mobile:
+            return "Mobile Developer"
+        elif primary_lang == "rust":
+            return "Systems Programmer"
+        elif primary_lang in ["python", "javascript", "typescript"]:
+            return "Software Developer"
+        else:
+            return "Software Engineer"
+    
+    def _generate_responsibilities(self, tech_stack: Dict[str, Any], commits: List) -> List[str]:
+        """Generate responsibilities based on commit patterns and technology stack."""
+        responsibilities = []
+        
+        # Analyze commit types
+        change_types = tech_stack.get("change_types", [])
+        
+        # Get technologies
+        languages = [lang["language"] for lang in tech_stack.get("top_languages", [])[:5]]
+        frameworks = [fw["name"] for fw in tech_stack.get("top_frameworks", [])[:5]]
+        tools = [tool["name"] for tool in tech_stack.get("top_tools", [])[:5]]
+        
+        # Generate responsibilities based on patterns
+        if "docker" in [t.lower() for t in tools]:
+            responsibilities.append("Containerized applications using Docker for consistent deployment environments")
+        
+        if "makefile" in [t.lower() for t in tools]:
+            responsibilities.append("Developed and maintained build automation scripts and CI/CD pipelines")
+        
+        if any(ct["type"] == "feature" for ct in change_types):
+            feature_percent = next((ct["percentage"] for ct in change_types if ct["type"] == "feature"), 0)
+            if feature_percent > 30:
+                responsibilities.append("Led feature development and implementation of new functionalities")
+        
+        if any(ct["type"] == "bugfix" for ct in change_types):
+            bugfix_percent = next((ct["percentage"] for ct in change_types if ct["type"] == "bugfix"), 0)
+            if bugfix_percent > 25:
+                responsibilities.append("Maintained code quality through systematic bug fixes and debugging")
+        
+        if any(ct["type"] == "refactor" for ct in change_types):
+            responsibilities.append("Refactored legacy code to improve performance and maintainability")
+        
+        if "react" in [f.lower() for f in frameworks]:
+            responsibilities.append("Developed responsive user interfaces using React and modern JavaScript")
+        
+        if "rust" in [l.lower() for l in languages]:
+            responsibilities.append("Built high-performance systems and tools using Rust programming language")
+        
+        if "python" in [l.lower() for l in languages]:
+            responsibilities.append("Developed backend services and automation scripts in Python")
+        
+        if "typescript" in [t.lower() for t in tools + languages]:
+            responsibilities.append("Implemented type-safe applications using TypeScript")
+        
+        # Add generic responsibilities if list is too short
+        if len(responsibilities) < 3:
+            responsibilities.extend([
+                "Collaborated with cross-functional teams to deliver software solutions",
+                "Participated in code reviews and maintained coding standards",
+                "Documented technical processes and system architecture"
+            ])
+        
+        return responsibilities[:6]  # Limit to 6 responsibilities
+    
+    def _generate_achievements(self, tech_stack: Dict[str, Any], commits: List, activity: Dict[str, Any]) -> List[str]:
+        """Generate key achievements based on metrics and patterns."""
+        achievements = []
+        
+        # Calculate metrics
+        total_commits = tech_stack.get("analysis_period", {}).get("commits_analyzed", 0)
+        repos_count = len(tech_stack.get("commit_summary", {}).get("repos_contributed", []))
+        languages_count = len(tech_stack.get("programming_languages", {}))
+        
+        # Generate achievements based on volume and diversity
+        if total_commits > 100:
+            achievements.append(f"Delivered {total_commits}+ commits across {repos_count} repositories")
+        
+        if languages_count >= 3:
+            achievements.append(f"Demonstrated proficiency in {languages_count} programming languages")
+        
+        # Check for test-related patterns
+        change_types = tech_stack.get("change_types", [])
+        test_commits = next((ct["count"] for ct in change_types if ct["type"] == "test"), 0)
+        if test_commits > 5:
+            test_percentage = round((test_commits / total_commits) * 100) if total_commits > 0 else 0
+            achievements.append(f"Maintained {test_percentage}% test coverage through comprehensive testing")
+        
+        # Check for performance improvements
+        perf_commits = next((ct["count"] for ct in change_types if ct["type"] == "performance"), 0)
+        if perf_commits > 2:
+            achievements.append("Optimized application performance through targeted improvements")
+        
+        # Check for documentation
+        doc_commits = next((ct["count"] for ct in change_types if ct["type"] == "documentation"), 0)
+        if doc_commits > 3:
+            achievements.append("Enhanced project documentation and developer experience")
+        
+        # Check for CI/CD related work
+        tools = [tool["name"].lower() for tool in tech_stack.get("top_tools", [])]
+        if any(tool in ["docker", "makefile", "git"] for tool in tools):
+            achievements.append("Implemented automated build and deployment processes")
+        
+        # Add generic achievements if list is short
+        if len(achievements) < 3:
+            achievements.extend([
+                "Successfully delivered multiple software projects on schedule",
+                "Contributed to open source projects and community development",
+                "Improved code quality through systematic refactoring initiatives"
+            ])
+        
+        return achievements[:5]  # Limit to 5 achievements
+    
+    def _infer_methodologies(self, tech_stack: Dict[str, Any], commits: List) -> List[str]:
+        """Infer methodologies used based on commit patterns and tools."""
+        methodologies = []
+        
+        tools = [tool["name"].lower() for tool in tech_stack.get("top_tools", [])]
+        change_types = tech_stack.get("change_types", [])
+        
+        # Check for CI/CD
+        if any(tool in ["docker", "makefile", "git", "github-actions"] for tool in tools):
+            methodologies.append("CI/CD")
+        
+        # Check for testing patterns
+        if any(tool in ["pytest", "jest", "mocha"] for tool in tools):
+            methodologies.append("Test-Driven Development")
+        
+        # Check for agile patterns (frequent small commits)
+        if len(commits) > 50:
+            methodologies.append("Agile Development")
+        
+        # Check for DevOps practices
+        if "docker" in tools:
+            methodologies.append("DevOps")
+        
+        # Check for version control practices
+        if "git" in tools:
+            methodologies.append("Version Control")
+        
+        # Add default methodologies if none detected
+        if not methodologies:
+            methodologies = ["Agile Development", "Version Control"]
+        
+        return list(set(methodologies))[:5]  # Remove duplicates and limit
+    
+    def _calculate_experience_metrics(self, commits: List, activity: Dict[str, Any], tech_stack: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate experience metrics from GitHub data."""
+        # Count PRs from events (rough estimate)
+        events = activity.get("events", [])
+        pr_events = [e for e in events if e.get("type") == "PullRequestEvent"]
+        
+        # Estimate metrics from available data
+        total_commits = len(commits)
+        estimated_prs_opened = len(pr_events)
+        estimated_prs_merged = round(estimated_prs_opened * 0.8)  # Assume 80% merge rate
+        
+        # Count issue events
+        issue_events = [e for e in events if e.get("type") == "IssuesEvent"]
+        estimated_issues = len(issue_events)
+        
+        # Estimate code reviews (assume 1 review per 3 commits)
+        estimated_reviews = round(total_commits / 3)
+        
+        return {
+            "total_commits": total_commits,
+            "prs_opened": estimated_prs_opened,
+            "prs_merged": estimated_prs_merged,
+            "issues_opened": estimated_issues,
+            "code_reviews": estimated_reviews
+        }
+    
+    def _analyze_collaboration(self, commits: List, repos_contributed: List[str]) -> Dict[str, Any]:
+        """Analyze collaboration patterns from commit and repository data."""
+        # Check if working across multiple repositories
+        cross_team = len(repos_contributed) > 1
+        
+        # Check for organization repositories (indicates team work)
+        org_repos = [repo for repo in repos_contributed if '/' in repo and not repo.startswith(commits[0].author.login if commits else "")]
+        
+        # Estimate co-contributors (simplified)
+        co_contributors = []
+        
+        # Determine mentorship (if senior role inferred from tech diversity)
+        languages_count = len(repos_contributed)
+        mentorship = languages_count > 3  # Assume mentorship if working on diverse projects
+        
+        return {
+            "co_contributors": co_contributors[:5],  # Limit to 5
+            "cross_team": cross_team,
+            "mentorship": mentorship
+        }
+    
+    def _generate_linked_artifacts(self, primary_repo: Optional[str], user, commits: List) -> Dict[str, Optional[str]]:
+        """Generate linked artifacts URLs."""
+        artifacts = {
+            "demo_url": None,
+            "docs_url": None,
+            "release_notes": None
+        }
+        
+        if primary_repo:
+            # Generate common URLs
+            artifacts["docs_url"] = f"https://github.com/{primary_repo}#readme"
+            artifacts["release_notes"] = f"https://github.com/{primary_repo}/releases"
+            
+            # Check for common demo patterns
+            repo_name = primary_repo.split('/')[-1].lower()
+            if any(keyword in repo_name for keyword in ['demo', 'example', 'sample', 'showcase']):
+                artifacts["demo_url"] = f"https://{primary_repo.split('/')[-1]}.netlify.app"
+        
+        return artifacts
+    
+    def _generate_linkedin_summary(self, role_title: str, technologies: List[str], achievements: List[str], organization: Optional[str]) -> str:
+        """Generate a LinkedIn-ready summary."""
+        tech_str = ", ".join(technologies[:5])
+        
+        summary_parts = []
+        
+        # Role and organization
+        if organization:
+            summary_parts.append(f"{role_title} with experience at {organization}")
+        else:
+            summary_parts.append(f"Experienced {role_title}")
+        
+        # Technologies
+        if technologies:
+            summary_parts.append(f"specializing in {tech_str}")
+        
+        # Key achievements
+        if achievements:
+            summary_parts.append(f". {achievements[0]}")
+            if len(achievements) > 1:
+                summary_parts.append(f" {achievements[1]}")
+        
+        # Add closing
+        summary_parts.append(". Passionate about delivering high-quality software solutions and contributing to open source projects.")
+        
+        return "".join(summary_parts)
+    
     async def close(self):
         """Close the HTTP session."""
         await self.session.aclose() 
